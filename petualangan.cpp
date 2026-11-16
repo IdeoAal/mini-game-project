@@ -2,7 +2,12 @@
 #include <cstdlib>
 #include <ctime>
 #include <string>
+#include <vector>
+#include <algorithm>
+#include <fstream>
 using namespace std;
+
+const string FILE_LEADERBOARD = "leaderboard.txt";
 
 // disini kami menyimpan untuk status pemain, seperti nama, nyawa, dan poin
 struct Player{
@@ -10,6 +15,78 @@ struct Player{
     int nyawa;
     int poin;
 };
+
+void insertionSort(vector<Player>& arr) {
+    int n = arr.size();
+    for (int i = 1; i < n; ++i) {
+        Player key = arr[i];
+        int j = i - 1;
+
+        // Bandingkan poin; gunakan '<' agar skor terbesar geser ke kiri (indeks 0)
+        while (j >= 0 && arr[j].poin < key.poin) {
+            arr[j + 1] = arr[j];
+            j = j - 1;
+        }
+        arr[j + 1] = key;
+    }
+}
+
+void loadLeaderboard(const string& filename, vector<Player>& daftar) {
+    daftar.clear();
+    ifstream file(filename);
+    if (!file.is_open()) {
+        // File belum ada (misalnya baru pertama kali main)
+        return;
+    }
+
+    Player p;
+    p.nyawa = 0;
+    while (file >> p.nama >> p.poin) {
+        daftar.push_back(p);
+    }
+    file.close();
+
+    insertionSort(daftar);
+}
+
+void saveLeaderboard(const string& filename, const vector<Player>& daftar) {
+    ofstream file(filename, ios::trunc);
+    if (!file.is_open()) {
+        cout << "Gagal menyimpan leaderboard ke file!" << endl;
+        return;
+    }
+
+    int batas = min(10, static_cast<int>(daftar.size()));
+    for (int i = 0; i < batas; ++i) {
+        file << daftar[i].nama << " " << daftar[i].poin << "\n";
+    }
+    file.close();
+}
+
+void resetLeaderboard(const string& filename, vector<Player>& daftar) {
+    ofstream file(filename, ios::trunc);
+    if (file.is_open()) {
+        file.close();
+    }
+    daftar.clear();
+    cout << "\nLeaderboard berhasil direset!" << endl;
+}
+
+void tampilkanLeaderboard(const vector<Player>& daftar) {
+    cout << "\n====== TOP 10 LEADERBOARD ======" << endl;
+
+    if (daftar.empty()) {
+        cout << "Belum ada skor tersimpan." << endl;
+        return;
+    }
+
+    int batas = min(10, static_cast<int>(daftar.size()));
+    for (int i = 0; i < batas; ++i) {
+        cout << (i + 1) << ". Nama: " << daftar[i].nama
+             << " | Poin: " << daftar[i].poin << endl;
+    }
+    cout << "================================" << endl;
+}
 
 // fungsi void ini digunakan untuk menampilkan status pemain
 void PlayerStatus(Player player){
@@ -29,16 +106,14 @@ void Welcome(){
 int main(){
     // dari struct Player, kita membuat objek player1 untuk menyimpan data pemain
     Player player1;
-    player1.nyawa = 3;
-    player1.poin = 0;
+    vector<Player> leaderboard;
+
+    loadLeaderboard(FILE_LEADERBOARD, leaderboard);
 
     // untuk awal game kita panggil fungsi welcome yang berisi penjelasan singkat tentang permainan
     Welcome();
 
-    // disini kita meminta pemain untuk memasukkan nama mereka
-    cout << "Masukkan nama pemain: ";
-    // nama pemain akan disimpan di player1.nama yang tadi dibuat dari struct player
-    cin >> player1.nama;
+    tampilkanLeaderboard(leaderboard);
 
     srand(time(0));
 
@@ -52,9 +127,15 @@ int main(){
     // jika pemain memasukan 'y' maka akan masuk ke loop while dan memulai permainan baru
 
     while (mainLagi == 'y') {
+        cout << "\nMulai permainan baru!" << endl;
+
+        // disini kita meminta pemain untuk memasukkan nama mereka
+        // nama pemain akan disimpan di player1.nama yang tadi dibuat dari struct player
+        cout << "Masukkan nama pemain: ";
+        cin >> player1.nama;
+
         // disini kita menampilkan pesan bahwa permainan baru dimulai,
         // dan mengembalikan nyawa dan poin pemain ke kondisi awal
-        cout << "\nMulai permainan baru!" << endl;
         player1.nyawa = 3;
         player1.poin = 0;
 
@@ -86,7 +167,7 @@ int main(){
             int random = rand() % 100 + 1;
 
             // nah jika angka random yang muncul 30 kebawah maka masuk ke if
-            if (random <= 30) {
+            if (random <= 50) {
                 //system("cls") digunakan untuk membersihkan layar console pada Windows.
                 system("cls");
 
@@ -124,14 +205,27 @@ int main(){
         cout << "Nama Pemain: " << player1.nama << endl;
         cout << "Poin Akhir: " << player1.poin << endl;
 
+        leaderboard.push_back(player1);
+        insertionSort(leaderboard);
+        saveLeaderboard(FILE_LEADERBOARD, leaderboard);
+        tampilkanLeaderboard(leaderboard);
+
         // kita tanya mau main lagi atau tidak
-        // jika masukan 'y' maka akan masuk ke loop while dan memulai permainan baru
+        // jika masukan 'y' maka akan masuk ke loop while dan memulai permainan baru        
         cout << "\nMain lagi? (y/n): ";
         cin >> mainLagi;
     }
 
     // disini setelah pemain memasukan n, maka akan keluar dari loop while
     // dan menampilkan pesan terima kasih sudah bermain
+    char resetPilihan;
+        cout << "\nReset leaderboard? (y/n): ";
+        cin >> resetPilihan;
+        if (resetPilihan == 'y' || resetPilihan == 'Y') {
+            resetLeaderboard(FILE_LEADERBOARD, leaderboard);
+            tampilkanLeaderboard(leaderboard);
+        }
+
     cout << "\nTerima kasih sudah bermain!" << endl;
 
     return 0;
